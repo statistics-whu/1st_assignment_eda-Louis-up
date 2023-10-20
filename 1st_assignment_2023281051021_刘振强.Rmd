@@ -1,0 +1,225 @@
+---
+title: "第一次作业-武汉链家数据简要分析"
+author:
+  - 刘振强
+  - 2023年10月19日
+ 
+documentclass: ctexart
+geometry: "left=2.5cm, right=2cm, top=3cm, bottom=2.5cm"
+keywords:
+  - 中文
+  - R Markdown
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+# 主要发现
+
+发现1：武昌区、江汉区、洪山区平均房价最高，黄陂、蔡甸、新洲平均房价最低。
+
+发现2：房间数量和总价格具有较强的正向关联性。
+
+发现3：精装的有助于二手房出售（相对简装），毛坯价格与精装价格差异较小，说明很多客户青睐二手毛坯房，可以按照自己喜欢风格装修。
+
+发现4：靠近地铁的房子价格显著高于远离地铁的房子价格，可能有其他因素影响（例如学区、商场及其他配套资源），还需要进一步分析。靠近地铁的二手房占比接近52%，侧面说明武汉市的地铁覆盖率比较高。
+
+发现5：1-4个房间数量与楼层数量关系不明显，5-7个房间基本分布在中矮楼层。
+
+发现6：81.8%的房子朝向向南(主要因为采光及风俗习惯的原因)。
+
+发现7：二手房出售中，开发商为保利的数量最多，达到183，约占6%，原因在于保利在南湖片区体量较大；开发商为万科、金地、联投等数量紧随其后。
+
+发现总结：
+中心城区房价普遍偏高；武汉市城市发展较快，地铁覆盖率较高；保利、万科等在武汉的楼盘较多。
+
+# 数据介绍
+本报告链家数据获取方式如下：
+报告人在 2023 年 9 月 12 日获取了链家武汉二手房网站数据。
+• 链家二手房网站默认显示 100 页，每页 30 套房产，因此本数据包括 3000 套房产信息；
+• 数据包括了页面可见部分的文本信息，具体字段及说明见作业说明。
+说明：数据仅用于教学；由于不清楚链家数据的展示规则，因此数据可能并不是武汉二手房市场的随机抽样，结论很可能有很大的偏差，甚至可能是错误的。
+
+
+# 数据分析
+## 描述性统计
+```{r}
+library(psych)
+data_lj <- read.csv("/Users/lzq/Course/1st-assignment-main-2/data/2023-09-12_cleaned.csv")
+# summary(data_lj )
+
+describe(data_lj )  #另外一种展示方式
+
+```
+
+
+分析结果：
+1.通过summary()函数可以看到最小值、1/4分位值、众数、均值、3/4分位值等。
+2.通过describe()函数查看均值、众数、修剪均值、平均绝对偏差（MAD，Mean Absolute Deviation）、偏度、峰度等数据，例如房屋总价数据，均值为155.86万元，最小为10.6万元，最大为1380万元，众数为137万元，按照一定的比例或数量（可定义），将数据集中的极端值去除，剔除后均值为142.48万元；峰度（kurtosis）大于3，表示数据分布的峰度较高（尖峰），即数据集中的值较集中。
+
+
+## 哪个地区的平均房价最高
+```{r}
+library(dplyr)
+data_lj <- read.csv("/Users/lzq/Course/1st-assignment-main-2/data/2023-09-12_cleaned.csv")
+# avg_price_by_region <- data_lj %>% group_by(property_region) %>% summarise(avg_price = mean(price_ttl)) %>%   arrange(desc(avg_price))  # 查看所有街道平均价格
+data_lj <- data_lj %>%
+  mutate(property_region = case_when(
+    property_region %in% c("常青花园", "将军路",  "吴家山",  "东西湖其他") ~ "东西湖区",
+    property_region %in% c("王家湾",  "钟家村",  "四新",  "七里庙") ~ "汉阳区" ,
+    property_region %in% c("楚河汉街",  "东湖东亭", "积玉桥", "南湖沃尔玛",  "沙湖",  "首义", "水果湖", "团结大道", "武昌火车站", "中北路", "中南丁字桥") ~ "武昌区",
+    property_region %in% c("青山" ) ~ "青山区",
+    property_region %in% c("宝丰崇仁", "古田", "汉正街", "集贤", "长丰常码头", "宗关") ~ "硚口区",
+    property_region %in% c("藏龙岛", "光谷南", "金融港", "庙山", "纸坊", "江夏其他") ~ "江夏区",
+    property_region %in% c("CBD西北湖", "常青路", "前进江汉", "唐家墩", "武广万松园", "新华路万达", "杨汊湖", "长港路") ~ "江汉区",
+    property_region %in% c("百步亭", "大智路", "堤角", "二七", "国际百纳", "后湖", "黄埔永清", "三阳路", "塔子湖" ,"台北香港路", "育才花桥") ~ "江岸区",
+    property_region %in% c("汉口北", "盘龙城", "武湖", "黄陂其他") ~ "黄陂区",
+    property_region %in% c("白沙洲", "关山大道", "关西长职", "光谷东", "光谷广场", "虎泉杨家湾", "华科大", "黄家湖", "街道可" ,"街道口", "老南湖", "新南湖" ,"珞狮南路", "名族大道", "文化大道" ,"徐东", "杨园", "卓刀泉", "洪山其他") ~ "洪山区",
+    property_region %in% c("蔡甸城区", "蔡甸其它", "中法生态城",  "后官湖") ~ "蔡甸区",
+    property_region %in% c("阳逻") ~ "新洲区" , 
+    property_region %in% c("沌口") ~ "经开区" , 
+    property_region %in% c("汉南其他") ~ "汉南区" , 
+    TRUE ~ "Other"
+    ))
+avg_price_by_region <- data_lj %>%
+  group_by(property_region) %>%
+  summarise(avg_price = mean(price_ttl)) %>%
+  arrange(desc(avg_price))
+
+# 按区域分类汇总
+print(avg_price_by_region)
+
+
+```
+分析结果：武昌区、江汉区、洪山区平均房价最高，黄陂、蔡甸、新洲平均房价最低。
+
+## 房间数量和总价格之间关系
+```{r}
+library(dplyr)
+library(ggplot2)
+ggplot(data_lj, aes(x = bedrooms, y = price_ttl)) +
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  labs(x = "Bedroom Count", y = "Total Price")
+
+```
+分析结果：房间数量和总价格具有较强的正向关联性。
+
+## 装修情况是否影响房价
+```{r}
+library(dplyr)
+library(ggplot2)
+
+avg_price <- data_lj %>% group_by(decoration) %>% summarise(avg_price = mean(price_ttl))
+
+print(avg_price)
+
+# 生成柱状图
+#ggplot( avg_price, aes(x = decoration, y = avg_price)) +   geom_bar(stat = "identity", fill = "steelblue") +  labs(x = "decoration", y = "avg_price") +  ggtitle("Relation_of_decoration_between_avg_price")  #注意图表有中文字
+
+```
+分析结果：精装的有助于二手房出售（相对简装），毛坯价格与精装价格差异较小，说明很多客户青睐二手毛坯房，可以按照自己喜欢风格装修。
+
+
+
+## 靠近地铁的房子是否比远离地铁的房子更贵
+
+```{r}
+library(dplyr)
+data_lj %>% 
+  mutate(near_subway = ifelse(is.na(near_subway), "No", "Yes")) %>% 
+  group_by(near_subway) %>% 
+  summarise(avg_price = mean(price_ttl))
+
+data_lj %>%
+  mutate(near_subway = ifelse(is.na(near_subway), "No", "Yes")) %>%
+  group_by(near_subway) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+
+```
+分析结果：1.靠近地铁的房子价格显著高于远离地铁的房子价格，可能有其他因素影响（例如学区、商场及其他配套资源），还需要进一步分析。2.靠近地铁的二手房占比接近52%，侧面说明武汉市的地铁覆盖率比较高。
+
+
+##  房间数量与楼层数量是否存在趋势关系
+```{r}
+library(ggplot2)
+# 创建散点图
+data_lj <- read.csv("/Users/lzq/Course/1st-assignment-main-2/data/2023-09-12_cleaned.csv")
+ggplot(data_lj, aes(x = bedrooms, y = property_t_height)) +
+  geom_point() +
+  labs(x = "Bedrooms", y = "Property Height") +
+  theme_minimal() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+分析结果：1-4个房间数量与楼层数量关系不明显，5-7个房间基本分布在中矮楼层
+
+
+##  房屋朝向分布
+```{r}
+
+data_lj <- read.csv("/Users/lzq/Course/1st-assignment-main-2/data/2023-09-12_cleaned.csv")
+prop_directions1 <- prop.table(table(data_lj$directions1))
+print(prop_directions1)
+
+
+
+# 计算频数
+#freq <- table(data$directions1)
+#print(freq)
+
+
+```
+分析结果：81.8%的房子朝向向南(主要因为采光及风俗习惯的原因)
+
+
+## 那个房企挂牌的二手房数量最多
+```{r}
+
+library(dplyr)  
+data_lj <- read.csv("/Users/lzq/Course/1st-assignment-main-2/data/2023-09-12_cleaned.csv") 
+
+xiaoqu_grouped <- data_lj %>%  
+  group_by(property_name) %>%  
+  summarise(count = n())  
+
+
+# 筛选出'name'包含"万科"和"保利"等字样的数据
+vanke_count <- xiaoqu_grouped[grepl("万科", xiaoqu_grouped$property_name), ]$count %>% sum()
+poly_count  <- xiaoqu_grouped[grepl("保利", xiaoqu_grouped$property_name), ]$count %>% sum()
+jindi_count  <- xiaoqu_grouped[grepl("金地", xiaoqu_grouped$property_name), ]$count %>% sum()
+hengda_count <- xiaoqu_grouped[grepl("恒大", xiaoqu_grouped$property_name), ]$count %>% sum()
+fudi_count <- xiaoqu_grouped[grepl("复地", xiaoqu_grouped$property_name), ]$count %>% sum()
+liantou_count  <- xiaoqu_grouped[grepl("联投", xiaoqu_grouped$property_name), ]$count %>% sum()
+biguiyuan_count  <- xiaoqu_grouped[grepl("碧桂园", xiaoqu_grouped$property_name), ]$count %>% sum()
+rongchuang_count  <- xiaoqu_grouped[grepl("融创", xiaoqu_grouped$property_name), ]$count %>% sum()
+# 在使用%like%操作符进行字符串匹配时，使用"%pattern%"来匹配任意包含模式字符串的文本；
+# biguiyuan_count <- xiaoqu_grouped[xiaoqu_grouped$property_name %like% "碧桂园", ]$count  %>% sum() 
+# SQL中的LIKE操作符进行模式匹配 
+
+# 输出结果  
+print(paste("保利数量：", poly_count))
+print(paste("万科数量：", vanke_count))
+print(paste("金地数量：", jindi_count))
+print(paste("联投数量：", liantou_count))
+print(paste("恒大数量：", hengda_count))
+print(paste("复地数量：", fudi_count))
+print(paste("碧桂园数量：", biguiyuan_count))
+print(paste("融创数量：", rongchuang_count))
+
+```
+分析结果：二手房出售中，开发商为保利的数量最多，达到183，约占6%，原因在于保利在南湖片区体量较大；开发商为万科、金地、联投等数量紧随其后。
+
+
+
+
+
+
+
+
+
+
+
